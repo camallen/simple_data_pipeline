@@ -2,6 +2,7 @@ require 'jbundler'
 require 'jruby-kafka'
 require 'logger'
 require 'pry'
+require_relative 'classifcation_csv_formatter'
 
 class JrubyKafkaConsumer
 
@@ -11,7 +12,7 @@ class JrubyKafkaConsumer
   OPTIONS = {
     zk_connect: 'localhost:2181',
     group_id: 'pantopes_classifications',
-    topic_id: 'test',
+    topic_id: 'classifications',
     rebalance_max_retries: 4,
     rebalance_backoff_ms: 2000,
     reset_beginning: nil,
@@ -24,7 +25,7 @@ class JrubyKafkaConsumer
 
   def initialize
     @log = Logger.new(STDOUT)
-
+    @formatter = ClassificationCsvFormatter.new
     @queue = SizedQueue.new(QUEUE_SIZE)
     @group = Kafka::Group.new(options)
     reg_details = { group_id: options[:group_id],
@@ -41,7 +42,7 @@ class JrubyKafkaConsumer
           #note: pop is blocking here!
           queue_event("#{@queue.pop}")
         end
-      rescue ShutdownSignal
+      rescue JrubyKafkaConsumer::ShutdownSignal
         log_event('Kafka got shutdown signal')
         @group.shutdown
       end
@@ -68,10 +69,14 @@ class JrubyKafkaConsumer
 
   #create a formatter here to create the csv output / message
   def queue_event(message)
-    log_event(message)
+    formatted_classification = @formatter.format_classification(message)
+    #TODO: stream this to a file via the logger!
+    #      look at fluentd to read the log and create a s3 batch file!
+    log_event(formatted_classification.to_s)
   end
 
   def log_event(message)
+    #TODO: override the logger to output CSV formatted data without array strings
     @log.info(message)
   end
 
