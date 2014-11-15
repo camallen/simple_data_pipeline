@@ -37,14 +37,9 @@ class JrubyKafkaConsumer
   def run
     begin
       @group.run(1,@queue)
-      begin
-        while true
-          #note: pop is blocking here!
-          queue_event("#{@queue.pop}")
-        end
-      rescue JrubyKafkaConsumer::ShutdownSignal
-        log_event('Kafka got shutdown signal')
-        @group.shutdown
+      while true
+        #note: pop is blocking here!
+        queue_event("#{@queue.pop}")
       end
       until @queue.empty?
         queue_event("#{@queue.pop}")
