@@ -1,38 +1,34 @@
 require_relative 'test_classification'
 require 'pry'
+require 'rb-readline'
 
 class ClassificationCsvFormatter
 
+  class FormatError < StandardError; end
+
   def format_classification(classification)
-    @classification_hash = JSON.parse(classification)
-    @non_annotation_hash = flatten_hash
-    convert_annotations_to_arrays
+    begin
+      @classification_hash = JSON.parse(classification)
+    rescue JSON::ParserError
+      raise FormatError.new
+    end
+    arrayify_hash
   end
 
   private
 
-  def flatten_hash
-    {}.tap do |flat_hash|
+  def arrayify_hash
+    {}.tap do |array_hash|
       @classification_hash.each do |key, value|
         case key
         when 'completed', 'gold_standard'
-          flat_hash[key] = value
+          array_hash[key] = value
         when 'metadata', 'links'
-          flat_hash.merge!(value)
+          array_hash.merge!(value)
+        when 'annotations'
+          array_hash[key] = value.to_json
         end
       end
-    end
-  end
-
-  def merge_annotations
-    @classification_hash['annotations'].map do |annotation|
-      @non_annotation_hash.dup.merge!(annotation)
-    end
-  end
-
-  def convert_annotations_to_arrays
-    merge_annotations.map do |hash|
-      hash.values.to_a
     end
   end
 end
